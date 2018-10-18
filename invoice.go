@@ -32,6 +32,18 @@ const (
 	InvoiceBillingReasonUpcoming           InvoiceBillingReason = "upcoming"
 )
 
+// InvoiceBillingStatus is the reason why a given invoice was created
+type InvoiceBillingStatus string
+
+// List of values that InvoiceBillingStatus can take.
+const (
+	InvoiceBillingStatusDraft         InvoiceBillingStatus = "draft"
+	InvoiceBillingStatusOpen          InvoiceBillingStatus = "open"
+	InvoiceBillingStatusPaid          InvoiceBillingStatus = "paid"
+	InvoiceBillingStatusUncollectible InvoiceBillingStatus = "uncollectible"
+	InvoiceBillingStatusVoid          InvoiceBillingStatus = "void"
+)
+
 // InvoiceUpcomingInvoiceItemParams is the set of parameters that can be used when adding or modifying
 // invoice items on an upcoming invoice.
 // For more details see https://stripe.com/docs/api#upcoming_invoice-invoice_items.
@@ -47,6 +59,7 @@ type InvoiceUpcomingInvoiceItemParams struct {
 // For more details see https://stripe.com/docs/api#create_invoice, https://stripe.com/docs/api#update_invoice.
 type InvoiceParams struct {
 	Params              `form:"*"`
+	AutoAdvance         *bool    `form:"auto_advance"`
 	ApplicationFee      *int64   `form:"application_fee"`
 	Billing             *string  `form:"billing"`
 	Closed              *bool    `form:"closed"`
@@ -101,6 +114,37 @@ type InvoiceLineListParams struct {
 	Subscription *string `form:"subscription"`
 }
 
+// InvoiceFinalizeParams is the set of parameters that can be used when finalizing invoices.
+type InvoiceFinalizeParams struct {
+	Params  `form:"*"`
+	AutoAdvance *bool   `form:"auto_advance"`
+}
+
+// InvoiceMarkUncollectibleParams is the set of parameters that can be used when marking
+// invoices as uncollectible.
+type InvoiceMarkUncollectibleParams struct {
+	Params  `form:"*"`
+}
+
+// InvoicePayParams is the set of parameters that can be used when
+// paying invoices. For more details, see:
+// https://stripe.com/docs/api#pay_invoice.
+type InvoicePayParams struct {
+	Params  `form:"*"`
+	Forgive *bool   `form:"forgive"`
+	Source  *string `form:"source"`
+}
+
+// InvoiceSendParams is the set of parameters that can be used when sending invoices.
+type InvoiceSendParams struct {
+	Params  `form:"*"`
+}
+
+// InvoiceVoidParams is the set of parameters that can be used when voiding invoices.
+type InvoiceVoidParams struct {
+	Params  `form:"*"`
+}
+
 // Invoice is the resource representing a Stripe invoice.
 // For more details see https://stripe.com/docs/api#invoice_object.
 type Invoice struct {
@@ -114,7 +158,6 @@ type Invoice struct {
 	Billing                   InvoiceBilling       `json:"billing"`
 	BillingReason             InvoiceBillingReason `json:"billing_reason"`
 	Charge                    *Charge              `json:"charge"`
-	Closed                    bool                 `json:"closed"`
 	Currency                  Currency             `json:"currency"`
 	Customer                  *Customer            `json:"customer"`
 	Date                      int64                `json:"date"`
@@ -122,7 +165,7 @@ type Invoice struct {
 	Discount                  *Discount            `json:"discount"`
 	DueDate                   int64                `json:"due_date"`
 	EndingBalance             int64                `json:"ending_balance"`
-	Forgiven                  bool                 `json:"forgiven"`
+	FinalizedAt               int64                `json:"finalized_at"`
 	HostedInvoiceURL          string               `json:"hosted_invoice_url"`
 	ID                        string               `json:"id"`
 	InvoicePDF                string               `json:"invoice_pdf"`
@@ -137,6 +180,7 @@ type Invoice struct {
 	ReceiptNumber             string               `json:"receipt_number"`
 	StartingBalance           int64                `json:"starting_balance"`
 	StatementDescriptor       string               `json:"statement_descriptor"`
+	Status                    InvoiceBillingStatus `json:"status"`
 	Subscription              string               `json:"subscription"`
 	SubscriptionProrationDate int64                `json:"subscription_proration_date"`
 	Subtotal                  int64                `json:"subtotal"`
@@ -181,15 +225,6 @@ type Period struct {
 type InvoiceLineList struct {
 	ListMeta
 	Data []*InvoiceLine `json:"data"`
-}
-
-// InvoicePayParams is the set of parameters that can be used when
-// paying invoices. For more details, see:
-// https://stripe.com/docs/api#pay_invoice.
-type InvoicePayParams struct {
-	Params  `form:"*"`
-	Forgive *bool   `form:"forgive"`
-	Source  *string `form:"source"`
 }
 
 // UnmarshalJSON handles deserialization of an Invoice.
